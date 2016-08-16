@@ -36,6 +36,7 @@
 extern crate libc;
 extern crate term;
 extern crate panic_unwind;
+extern crate num_cpus;
 
 pub use self::TestFn::*;
 pub use self::ColorConfig::*;
@@ -804,6 +805,8 @@ fn run_tests<F>(opts: &TestOpts, tests: Vec<TestDescAndFn>, mut callback: F) -> 
 
 #[allow(deprecated)]
 fn get_concurrency() -> usize {
+    use num_cpus::get as num_cpus;
+
     return match env::var("RUST_TEST_THREADS") {
         Ok(s) => {
             let opt_n: Option<usize> = s.parse().ok();
@@ -817,95 +820,6 @@ fn get_concurrency() -> usize {
         }
         Err(..) => num_cpus(),
     };
-
-    #[cfg(windows)]
-    #[allow(bad_style)]
-    fn num_cpus() -> usize {
-        #[repr(C)]
-        struct SYSTEM_INFO {
-            wProcessorArchitecture: u16,
-            wReserved: u16,
-            dwPageSize: u32,
-            lpMinimumApplicationAddress: *mut u8,
-            lpMaximumApplicationAddress: *mut u8,
-            dwActiveProcessorMask: *mut u8,
-            dwNumberOfProcessors: u32,
-            dwProcessorType: u32,
-            dwAllocationGranularity: u32,
-            wProcessorLevel: u16,
-            wProcessorRevision: u16,
-        }
-        extern "system" {
-            fn GetSystemInfo(info: *mut SYSTEM_INFO) -> i32;
-        }
-        unsafe {
-            let mut sysinfo = std::mem::zeroed();
-            GetSystemInfo(&mut sysinfo);
-            sysinfo.dwNumberOfProcessors as usize
-        }
-    }
-
-    #[cfg(any(target_os = "linux",
-              target_os = "macos",
-              target_os = "ios",
-              target_os = "android",
-              target_os = "solaris",
-              target_os = "emscripten"))]
-    fn num_cpus() -> usize {
-        unsafe { libc::sysconf(libc::_SC_NPROCESSORS_ONLN) as usize }
-    }
-
-    #[cfg(any(target_os = "freebsd",
-              target_os = "dragonfly",
-              target_os = "bitrig",
-              target_os = "netbsd"))]
-    fn num_cpus() -> usize {
-        use std::ptr;
-
-        let mut cpus: libc::c_uint = 0;
-        let mut cpus_size = std::mem::size_of_val(&cpus);
-
-        unsafe {
-            cpus = libc::sysconf(libc::_SC_NPROCESSORS_ONLN) as libc::c_uint;
-        }
-        if cpus < 1 {
-            let mut mib = [libc::CTL_HW, libc::HW_NCPU, 0, 0];
-            unsafe {
-                libc::sysctl(mib.as_mut_ptr(),
-                             2,
-                             &mut cpus as *mut _ as *mut _,
-                             &mut cpus_size as *mut _ as *mut _,
-                             ptr::null_mut(),
-                             0);
-            }
-            if cpus < 1 {
-                cpus = 1;
-            }
-        }
-        cpus as usize
-    }
-
-    #[cfg(target_os = "openbsd")]
-    fn num_cpus() -> usize {
-        use std::ptr;
-
-        let mut cpus: libc::c_uint = 0;
-        let mut cpus_size = std::mem::size_of_val(&cpus);
-        let mut mib = [libc::CTL_HW, libc::HW_NCPU, 0, 0];
-
-        unsafe {
-            libc::sysctl(mib.as_mut_ptr(),
-                         2,
-                         &mut cpus as *mut _ as *mut _,
-                         &mut cpus_size as *mut _ as *mut _,
-                         ptr::null_mut(),
-                         0);
-        }
-        if cpus < 1 {
-            cpus = 1;
-        }
-        cpus as usize
-    }
 }
 
 pub fn filter_tests(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> Vec<TestDescAndFn> {
