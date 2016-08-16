@@ -23,30 +23,18 @@
 // running tests while providing a base that other test frameworks may
 // build off of.
 
-#![crate_name = "test"]
-#![unstable(feature = "test", issue = "27812")]
-#![crate_type = "rlib"]
-#![crate_type = "dylib"]
-#![doc(html_logo_url = "https://www.rust-lang.org/logos/rust-logo-128x128-blk-v2.png",
-       html_favicon_url = "https://doc.rust-lang.org/favicon.ico",
-       html_root_url = "https://doc.rust-lang.org/nightly/",
-       test(attr(deny(warnings))))]
-#![cfg_attr(not(stage0), deny(warnings))]
 
 #![feature(asm)]
 #![feature(box_syntax)]
 #![feature(fnbox)]
-#![feature(libc)]
-#![feature(rustc_private)]
 #![feature(set_stdio)]
 #![feature(staged_api)]
 #![feature(question_mark)]
 #![feature(panic_unwind)]
 #![feature(mpsc_recv_timeout)]
 
-extern crate getopts;
-extern crate term;
 extern crate libc;
+extern crate term;
 extern crate panic_unwind;
 
 pub use self::TestFn::*;
@@ -80,7 +68,7 @@ const TEST_WARN_TIMEOUT_S: u64 = 60;
 pub mod test {
     pub use {Bencher, TestName, TestResult, TestDesc, TestDescAndFn, TestOpts, TrFailed,
              TrIgnored, TrOk, Metric, MetricMap, StaticTestFn, StaticTestName, DynTestName,
-             DynTestFn, run_test, test_main, test_main_static, filter_tests, parse_opts,
+             DynTestFn, run_test, filter_tests, parse_opts,
              StaticBenchFn, ShouldPanic};
 }
 
@@ -241,52 +229,6 @@ impl Clone for MetricMap {
     }
 }
 
-// The default console test runner. It accepts the command line
-// arguments and a vector of test_descs.
-pub fn test_main(args: &[String], tests: Vec<TestDescAndFn>) {
-    let opts = match parse_opts(args) {
-        Some(Ok(o)) => o,
-        Some(Err(msg)) => panic!("{:?}", msg),
-        None => return,
-    };
-    match run_tests_console(&opts, tests) {
-        Ok(true) => {}
-        Ok(false) => std::process::exit(101),
-        Err(e) => panic!("io error when running tests: {:?}", e),
-    }
-}
-
-// A variant optimized for invocation with a static test vector.
-// This will panic (intentionally) when fed any dynamic tests, because
-// it is copying the static values out into a dynamic vector and cannot
-// copy dynamic values. It is doing this because from this point on
-// a Vec<TestDescAndFn> is used in order to effect ownership-transfer
-// semantics into parallel test runners, which in turn requires a Vec<>
-// rather than a &[].
-pub fn test_main_static(tests: &[TestDescAndFn]) {
-    let args = env::args().collect::<Vec<_>>();
-    let owned_tests = tests.iter()
-                           .map(|t| {
-                               match t.testfn {
-                                   StaticTestFn(f) => {
-                                       TestDescAndFn {
-                                           testfn: StaticTestFn(f),
-                                           desc: t.desc.clone(),
-                                       }
-                                   }
-                                   StaticBenchFn(f) => {
-                                       TestDescAndFn {
-                                           testfn: StaticBenchFn(f),
-                                           desc: t.desc.clone(),
-                                       }
-                                   }
-                                   _ => panic!("non-static tests passed to test::test_main_static"),
-                               }
-                           })
-                           .collect();
-    test_main(&args, owned_tests)
-}
-
 #[derive(Copy, Clone)]
 pub enum ColorConfig {
     AutoColor,
@@ -326,130 +268,13 @@ impl TestOpts {
 /// Result of parsing the options.
 pub type OptRes = Result<TestOpts, String>;
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
-fn optgroups() -> Vec<getopts::OptGroup> {
-    vec!(getopts::optflag("", "ignored", "Run ignored tests"),
-      getopts::optflag("", "test", "Run tests and not benchmarks"),
-      getopts::optflag("", "bench", "Run benchmarks instead of tests"),
-      getopts::optflag("h", "help", "Display this message (longer with --help)"),
-      getopts::optopt("", "logfile", "Write logs to the specified file instead \
-                          of stdout", "PATH"),
-      getopts::optflag("", "nocapture", "don't capture stdout/stderr of each \
-                                         task, allow printing directly"),
-      getopts::optopt("", "test-threads", "Number of threads used for running tests \
-                                           in parallel", "n_threads"),
-      getopts::optflag("q", "quiet", "Display one character per test instead of one line"),
-      getopts::optopt("", "color", "Configure coloring of output:
-            auto   = colorize if stdout is a tty and tests are run on serially (default);
-            always = always colorize output;
-            never  = never colorize output;", "auto|always|never"))
-}
 
 fn usage(binary: &str) {
-    let message = format!("Usage: {} [OPTIONS] [FILTER]", binary);
-    println!(r#"{usage}
-
-The FILTER string is tested against the name of all tests, and only those
-tests whose names contain the filter are run.
-
-By default, all tests are run in parallel. This can be altered with the
---test-threads flag or the RUST_TEST_THREADS environment variable when running
-tests (set it to 1).
-
-All tests have their standard output and standard error captured by default.
-This can be overridden with the --nocapture flag or setting RUST_TEST_NOCAPTURE
-environment variable to a value other than "0". Logging is not captured by default.
-
-Test Attributes:
-
-    #[test]        - Indicates a function is a test to be run. This function
-                     takes no arguments.
-    #[bench]       - Indicates a function is a benchmark to be run. This
-                     function takes one argument (test::Bencher).
-    #[should_panic] - This function (also labeled with #[test]) will only pass if
-                     the code causes a panic (an assertion failure or panic!)
-                     A message may be provided, which the failure string must
-                     contain: #[should_panic(expected = "foo")].
-    #[ignore]      - When applied to a function which is already attributed as a
-                     test, then the test runner will ignore these tests during
-                     normal test runs. Running with --ignored will run these
-                     tests."#,
-             usage = getopts::usage(&message, &optgroups()));
 }
 
 // Parses command line arguments into test options
 pub fn parse_opts(args: &[String]) -> Option<OptRes> {
-    let args_ = &args[1..];
-    let matches = match getopts::getopts(args_, &optgroups()) {
-        Ok(m) => m,
-        Err(f) => return Some(Err(f.to_string())),
-    };
-
-    if matches.opt_present("h") {
-        usage(&args[0]);
-        return None;
-    }
-
-    let filter = if !matches.free.is_empty() {
-        Some(matches.free[0].clone())
-    } else {
-        None
-    };
-
-    let run_ignored = matches.opt_present("ignored");
-    let quiet = matches.opt_present("quiet");
-
-    let logfile = matches.opt_str("logfile");
-    let logfile = logfile.map(|s| PathBuf::from(&s));
-
-    let bench_benchmarks = matches.opt_present("bench");
-    let run_tests = !bench_benchmarks || matches.opt_present("test");
-
-    let mut nocapture = matches.opt_present("nocapture");
-    if !nocapture {
-        nocapture = match env::var("RUST_TEST_NOCAPTURE") {
-            Ok(val) => &val != "0",
-            Err(_) => false
-        };
-    }
-
-    let test_threads = match matches.opt_str("test-threads") {
-        Some(n_str) =>
-            match n_str.parse::<usize>() {
-                Ok(n) => Some(n),
-                Err(e) =>
-                    return Some(Err(format!("argument for --test-threads must be a number > 0 \
-                                             (error: {})", e)))
-            },
-        None =>
-            None,
-    };
-
-    let color = match matches.opt_str("color").as_ref().map(|s| &**s) {
-        Some("auto") | None => AutoColor,
-        Some("always") => AlwaysColor,
-        Some("never") => NeverColor,
-
-        Some(v) => {
-            return Some(Err(format!("argument for --color must be auto, always, or never (was \
-                                     {})",
-                                    v)))
-        }
-    };
-
-    let test_opts = TestOpts {
-        filter: filter,
-        run_ignored: run_ignored,
-        run_tests: run_tests,
-        bench_benchmarks: bench_benchmarks,
-        logfile: logfile,
-        nocapture: nocapture,
-        color: color,
-        quiet: quiet,
-        test_threads: test_threads,
-    };
-
-    Some(Ok(test_opts))
+    panic!()
 }
 
 #[derive(Clone, PartialEq)]
