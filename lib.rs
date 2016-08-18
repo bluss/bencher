@@ -145,7 +145,6 @@ impl Clone for MetricMap {
 pub struct TestOpts {
     pub filter: Option<String>,
     pub run_ignored: bool,
-    pub run_tests: bool,
     pub logfile: Option<PathBuf>,
     pub quiet: bool,
     pub test_threads: Option<usize>,
