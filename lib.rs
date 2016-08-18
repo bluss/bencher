@@ -14,11 +14,7 @@
 //! macros that are used to describe benchmarker functions and
 //! the benchmark runner.
 
-extern crate libc;
-extern crate term;
-
 pub use self::TestFn::*;
-pub use self::ColorConfig::*;
 use self::TestResult::*;
 use self::TestEvent::*;
 use self::NamePadding::*;
@@ -153,26 +149,12 @@ impl Clone for MetricMap {
     }
 }
 
-#[derive(Copy, Clone)]
-pub enum ColorConfig {
-    AutoColor,
-    AlwaysColor,
-    NeverColor,
-}
-
-impl Default for ColorConfig {
-    fn default() -> Self {
-        ColorConfig::AutoColor
-    }
-}
-
 #[derive(Default)]
 pub struct TestOpts {
     pub filter: Option<String>,
     pub run_ignored: bool,
     pub run_tests: bool,
     pub logfile: Option<PathBuf>,
-    pub color: ColorConfig,
     pub quiet: bool,
     pub test_threads: Option<usize>,
 }
@@ -192,14 +174,12 @@ enum TestResult {
 unsafe impl Send for TestResult {}
 
 enum OutputLocation<T> {
-    Pretty(Box<term::StdoutTerminal>),
     Raw(T),
 }
 
 struct ConsoleTestState<T> {
     log_out: Option<File>,
     out: OutputLocation<T>,
-    use_color: bool,
     quiet: bool,
     total: usize,
     passed: usize,
@@ -217,15 +197,11 @@ impl<T: Write> ConsoleTestState<T> {
             Some(ref path) => Some(try!(File::create(path))),
             None => None,
         };
-        let out = match term::stdout() {
-            None => Raw(io::stdout()),
-            Some(t) => Pretty(t),
-        };
+        let out = Raw(io::stdout());
 
         Ok(ConsoleTestState {
             out: out,
             log_out: log_out,
-            use_color: use_color(opts),
             quiet: opts.quiet,
             total: 0,
             passed: 0,
@@ -239,35 +215,25 @@ impl<T: Write> ConsoleTestState<T> {
     }
 
     pub fn write_ignored(&mut self) -> io::Result<()> {
-        self.write_short_result("ignored", "i", term::color::YELLOW)
+        self.write_short_result("ignored", "i")
     }
 
     pub fn write_bench(&mut self) -> io::Result<()> {
-        self.write_pretty("bench", term::color::CYAN)
+        self.write_pretty("bench")
     }
 
-    pub fn write_short_result(&mut self, verbose: &str, quiet: &str, color: term::color::Color)
+    pub fn write_short_result(&mut self, verbose: &str, quiet: &str)
                               -> io::Result<()> {
         if self.quiet {
-            self.write_pretty(quiet, color)
+            self.write_pretty(quiet)
         } else {
-            try!(self.write_pretty(verbose, color));
+            try!(self.write_pretty(verbose));
             self.write_plain("\n")
         }
     }
 
-    pub fn write_pretty(&mut self, word: &str, color: term::color::Color) -> io::Result<()> {
+    pub fn write_pretty(&mut self, word: &str) -> io::Result<()> {
         match self.out {
-            Pretty(ref mut term) => {
-                if self.use_color {
-                    try!(term.fg(color));
-                }
-                try!(term.write_all(word.as_bytes()));
-                if self.use_color {
-                    try!(term.reset());
-                }
-                term.flush()
-            }
             Raw(ref mut stdout) => {
                 try!(stdout.write_all(word.as_bytes()));
                 stdout.flush()
@@ -277,10 +243,6 @@ impl<T: Write> ConsoleTestState<T> {
 
     pub fn write_plain(&mut self, s: &str) -> io::Result<()> {
         match self.out {
-            Pretty(ref mut term) => {
-                try!(term.write_all(s.as_bytes()));
-                term.flush()
-            }
             Raw(ref mut stdout) => {
                 try!(stdout.write_all(s.as_bytes()));
                 stdout.flush()
@@ -369,9 +331,9 @@ impl<T: Write> ConsoleTestState<T> {
         try!(self.write_plain("\ntest result: "));
         if success {
             // There's no parallelism at this point so it's safe to use color
-            try!(self.write_pretty("ok", term::color::GREEN));
+            try!(self.write_pretty("ok"));
         } else {
-            try!(self.write_pretty("FAILED", term::color::RED));
+            try!(self.write_pretty("FAILED"));
         }
         let s = format!(". {} passed; {} failed; {} ignored; {} measured\n\n",
                         self.passed,
@@ -479,7 +441,6 @@ fn should_sort_failures_before_printing_them() {
     let mut st = ConsoleTestState {
         log_out: None,
         out: Raw(Vec::new()),
-        use_color: false,
         quiet: false,
         total: 0,
         passed: 0,
@@ -494,42 +455,11 @@ fn should_sort_failures_before_printing_them() {
     st.write_failures().unwrap();
     let s = match st.out {
         Raw(ref m) => String::from_utf8_lossy(&m[..]),
-        Pretty(_) => unreachable!(),
     };
 
     let apos = s.find("a").unwrap();
     let bpos = s.find("b").unwrap();
     assert!(apos < bpos);
-}
-
-fn use_color(opts: &TestOpts) -> bool {
-    match opts.color {
-        AutoColor => stdout_isatty(),
-        AlwaysColor => true,
-        NeverColor => false,
-    }
-}
-
-#[cfg(unix)]
-fn stdout_isatty() -> bool {
-    unsafe { libc::isatty(libc::STDOUT_FILENO) != 0 }
-}
-#[cfg(windows)]
-fn stdout_isatty() -> bool {
-    type DWORD = u32;
-    type BOOL = i32;
-    type HANDLE = *mut u8;
-    type LPDWORD = *mut u32;
-    const STD_OUTPUT_HANDLE: DWORD = -11i32 as DWORD;
-    extern "system" {
-        fn GetStdHandle(which: DWORD) -> HANDLE;
-        fn GetConsoleMode(hConsoleHandle: HANDLE, lpMode: LPDWORD) -> BOOL;
-    }
-    unsafe {
-        let handle = GetStdHandle(STD_OUTPUT_HANDLE);
-        let mut out = 0;
-        GetConsoleMode(handle, &mut out) != 0
-    }
 }
 
 #[derive(Clone)]
