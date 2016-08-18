@@ -166,22 +166,13 @@ pub struct TestDescAndFn {
 }
 
 #[derive(Clone, PartialEq, Debug, Copy)]
-pub struct Metric {
+struct Metric {
     value: f64,
     noise: f64,
 }
 
-impl Metric {
-    pub fn new(value: f64, noise: f64) -> Metric {
-        Metric {
-            value: value,
-            noise: noise,
-        }
-    }
-}
-
 #[derive(PartialEq)]
-pub struct MetricMap(BTreeMap<String, Metric>);
+struct MetricMap(BTreeMap<String, Metric>);
 
 impl Clone for MetricMap {
     fn clone(&self) -> MetricMap {
@@ -225,7 +216,6 @@ pub enum TestResult {
     TrOk,
     TrFailed,
     TrIgnored,
-    TrMetrics(MetricMap),
     TrBench(BenchSamples),
 }
 
@@ -288,10 +278,6 @@ impl<T: Write> ConsoleTestState<T> {
 
     pub fn write_ignored(&mut self) -> io::Result<()> {
         self.write_short_result("ignored", "i", term::color::YELLOW)
-    }
-
-    pub fn write_metric(&mut self) -> io::Result<()> {
-        self.write_pretty("metric", term::color::CYAN)
     }
 
     pub fn write_bench(&mut self) -> io::Result<()> {
@@ -364,10 +350,6 @@ impl<T: Write> ConsoleTestState<T> {
             TrOk => self.write_ok(),
             TrFailed => self.write_failed(),
             TrIgnored => self.write_ignored(),
-            TrMetrics(ref mm) => {
-                try!(self.write_metric());
-                self.write_plain(&format!(": {}\n", mm.fmt_metrics()))
-            }
             TrBench(ref bs) => {
                 try!(self.write_bench());
                 self.write_plain(&format!(": {}\n", fmt_bench_samples(bs)))
@@ -384,7 +366,6 @@ impl<T: Write> ConsoleTestState<T> {
                                     TrOk => "ok".to_owned(),
                                     TrFailed => "failed".to_owned(),
                                     TrIgnored => "ignored".to_owned(),
-                                    TrMetrics(ref mm) => mm.fmt_metrics(),
                                     TrBench(ref bs) => fmt_bench_samples(bs),
                                 },
                                 test.name);
@@ -498,15 +479,6 @@ pub fn run_tests_console(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> io::Resu
                 match result {
                     TrOk => st.passed += 1,
                     TrIgnored => st.ignored += 1,
-                    TrMetrics(mm) => {
-                        let tname = test.name;
-                        let MetricMap(mm) = mm;
-                        for (k, v) in &mm {
-                            st.metrics
-                              .insert_metric(&format!("{}.{}", tname, k), v.value, v.noise);
-                        }
-                        st.measured += 1
-                    }
                     TrBench(bs) => {
                         st.metrics.insert_metric(test.name.as_slice(),
                                                  bs.ns_iter_summ.median,
@@ -645,7 +617,7 @@ fn run_tests<F>(opts: &TestOpts, tests: Vec<TestDescAndFn>, mut callback: F) -> 
     Ok(())
 }
 
-pub fn filter_tests(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> Vec<TestDescAndFn> {
+fn filter_tests(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> Vec<TestDescAndFn> {
     let mut filtered = tests;
 
     // Remove tests that don't match the test filter
@@ -733,14 +705,6 @@ impl MetricMap {
         };
         let MetricMap(ref mut map) = *self;
         map.insert(name.to_owned(), m);
-    }
-
-    pub fn fmt_metrics(&self) -> String {
-        let MetricMap(ref mm) = *self;
-        let v: Vec<String> = mm.iter()
-                               .map(|(k, v)| format!("{}: {} (+/- {})", *k, v.value, v.noise))
-                               .collect();
-        v.join(", ")
     }
 }
 
