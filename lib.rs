@@ -13,6 +13,39 @@
 //! Almost all user code will only be interested in `Bencher` and the
 //! macros that are used to describe benchmarker functions and
 //! the benchmark runner.
+//!
+//! WARNING: There's no working black_box yet in this stable port of the benchmark runner.
+//! This means that it easily happens that the optimizer removes too much of
+//! the computation that you tried to benchmark.
+//!
+//! One way to use this crate is to use it as dev-dependency and define
+//! the benchmarks in an example that you compile and run using cargo. Don't forget
+//! to use `--release`!.
+//!
+//! ```
+//! #[macro_use]
+//! extern crate bencher;
+//!
+//! use bencher::Bencher;
+//!
+//! fn a(bench: &mut Bencher) {
+//!     bench.iter(|| {
+//!         (0..1000).fold(0, |x, y| x + y)
+//!     })
+//! }
+//!
+//! fn b(bench: &mut Bencher) {
+//!     bench.iter(|| {
+//!         String::new()
+//!     })
+//! }
+//!
+//! benchmark_group!(benches, a, b);
+//! benchmark_main!(benches);
+//!
+//! # #[cfg(never)]
+//! # fn main() { }
+//! ```
 
 pub use self::TestFn::*;
 use self::TestResult::*;
@@ -33,6 +66,7 @@ use std::sync::mpsc::{channel, Sender};
 use std::time::{Instant, Duration};
 
 pub mod stats;
+mod macros;
 
 // The name of a test. By convention this follows the rules for rust
 // paths; i.e. it should be a series of identifiers separated by double
