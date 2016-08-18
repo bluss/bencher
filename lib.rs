@@ -23,8 +23,6 @@
 // running tests while providing a base that other test frameworks may
 // build off of.
 
-#![feature(mpsc_recv_timeout)]
-
 extern crate libc;
 extern crate term;
 extern crate num_cpus;
@@ -423,12 +421,6 @@ impl<T: Write> ConsoleTestState<T> {
         }
     }
 
-    pub fn write_timeout(&mut self, desc: &TestDesc) -> io::Result<()> {
-        self.write_plain(&format!("test {} has been running for over {} seconds\n",
-                                  desc.name,
-                                  TEST_WARN_TIMEOUT_S))
-    }
-
     pub fn write_log(&mut self, test: &TestDesc, result: &TestResult) -> io::Result<()> {
         match self.log_out {
             None => Ok(()),
@@ -546,7 +538,6 @@ pub fn run_tests_console(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> io::Resu
         match (*event).clone() {
             TeFiltered(ref filtered_tests) => st.write_run_start(filtered_tests.len()),
             TeWait(ref test, padding) => st.write_test_start(test, padding),
-            TeTimeout(ref test) => st.write_timeout(test),
             TeResult(test, result, stdout) => {
                 try!(st.write_log(&test, &result));
                 try!(st.write_result(&result));
@@ -668,7 +659,6 @@ enum TestEvent {
     TeFiltered(Vec<TestDesc>),
     TeWait(TestDesc, NamePadding),
     TeResult(TestDesc, TestResult, Vec<u8>),
-    TeTimeout(TestDesc),
 }
 
 pub type MonitorMsg = (TestDesc, TestResult, Vec<u8>);
@@ -678,7 +668,6 @@ fn run_tests<F>(opts: &TestOpts, tests: Vec<TestDescAndFn>, mut callback: F) -> 
     where F: FnMut(TestEvent) -> io::Result<()>
 {
     use std::collections::HashMap;
-    use std::sync::mpsc::RecvTimeoutError;
 
     let mut filtered_tests = filter_tests(opts, tests);
 
@@ -708,27 +697,6 @@ fn run_tests<F>(opts: &TestOpts, tests: Vec<TestDescAndFn>, mut callback: F) -> 
 
     let mut running_tests: HashMap<TestDesc, Instant> = HashMap::new();
 
-    fn get_timed_out_tests(running_tests: &mut HashMap<TestDesc, Instant>) -> Vec<TestDesc> {
-        let now = Instant::now();
-        let timed_out = running_tests.iter()
-            .filter_map(|(desc, timeout)| if &now >= timeout { Some(desc.clone())} else { None })
-            .collect();
-        for test in &timed_out {
-            running_tests.remove(test);
-        }
-        timed_out
-    };
-
-    fn calc_timeout(running_tests: &HashMap<TestDesc, Instant>) -> Option<Duration> {
-        running_tests.values().min().map(|next_timeout| {
-            let now = Instant::now();
-            if *next_timeout >= now {
-                *next_timeout - now
-            } else {
-                Duration::new(0, 0)
-            }})
-    };
-
     while pending > 0 || !remaining.is_empty() {
         while pending < concurrency && !remaining.is_empty() {
             let test = remaining.pop().unwrap();
@@ -744,21 +712,7 @@ fn run_tests<F>(opts: &TestOpts, tests: Vec<TestDescAndFn>, mut callback: F) -> 
             pending += 1;
         }
 
-        let mut res;
-        loop {
-            if let Some(timeout) = calc_timeout(&running_tests) {
-                res = rx.recv_timeout(timeout);
-                for test in get_timed_out_tests(&mut running_tests) {
-                    try!(callback(TeTimeout(test)));
-                }
-                if res != Err(RecvTimeoutError::Timeout) {
-                    break;
-                }
-            } else {
-                res = rx.recv().map_err(|_| RecvTimeoutError::Disconnected);
-                break;
-            }
-        }
+        let res = rx.recv();
 
         let (desc, result, stdout) = res.unwrap();
         running_tests.remove(&desc);
