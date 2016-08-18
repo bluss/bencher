@@ -29,11 +29,11 @@ extern crate term;
 pub use self::TestFn::*;
 pub use self::ColorConfig::*;
 use self::TestResult::*;
-pub use self::TestName::*;
 use self::TestEvent::*;
 use self::NamePadding::*;
 use self::OutputLocation::*;
 
+use std::borrow::Cow;
 use std::cmp;
 use std::collections::BTreeMap;
 use std::fmt;
@@ -52,38 +52,19 @@ pub mod stats;
 // colons. This way if some test runner wants to arrange the tests
 // hierarchically it may.
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum TestName {
-    StaticTestName(&'static str),
-    DynTestName(String),
-}
-impl TestName {
-    fn as_slice(&self) -> &str {
-        match *self {
-            StaticTestName(s) => s,
-            DynTestName(ref s) => s,
-        }
-    }
-}
-impl fmt::Display for TestName {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(self.as_slice(), f)
-    }
-}
+pub type TestName = Cow<'static, str>;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum NamePadding {
-    PadNone,
     PadOnRight,
 }
 
 impl TestDesc {
     fn padded_name(&self, column_count: usize, align: NamePadding) -> String {
-        let mut name = String::from(self.name.as_slice());
+        let mut name = self.name.to_string();
         let fill = column_count.saturating_sub(name.len());
         let pad = repeat(" ").take(fill).collect::<String>();
         match align {
-            PadNone => name,
             PadOnRight => {
                 name.push_str(&pad);
                 name
@@ -213,8 +194,6 @@ pub struct BenchSamples {
 
 #[derive(Clone, PartialEq)]
 enum TestResult {
-    TrOk,
-    TrFailed,
     TrIgnored,
     TrBench(BenchSamples),
 }
@@ -266,14 +245,6 @@ impl<T: Write> ConsoleTestState<T> {
             failures: Vec::new(),
             max_name_len: 0,
         })
-    }
-
-    pub fn write_ok(&mut self) -> io::Result<()> {
-        self.write_short_result("ok", ".", term::color::GREEN)
-    }
-
-    pub fn write_failed(&mut self) -> io::Result<()> {
-        self.write_short_result("FAILED", "F", term::color::RED)
     }
 
     pub fn write_ignored(&mut self) -> io::Result<()> {
@@ -347,8 +318,6 @@ impl<T: Write> ConsoleTestState<T> {
 
     pub fn write_result(&mut self, result: &TestResult) -> io::Result<()> {
         match *result {
-            TrOk => self.write_ok(),
-            TrFailed => self.write_failed(),
             TrIgnored => self.write_ignored(),
             TrBench(ref bs) => {
                 try!(self.write_bench());
@@ -363,8 +332,6 @@ impl<T: Write> ConsoleTestState<T> {
             Some(ref mut o) => {
                 let s = format!("{} {}\n",
                                 match *result {
-                                    TrOk => "ok".to_owned(),
-                                    TrFailed => "failed".to_owned(),
                                     TrIgnored => "ignored".to_owned(),
                                     TrBench(ref bs) => fmt_bench_samples(bs),
                                 },
@@ -473,21 +440,16 @@ pub fn run_tests_console(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> io::Resu
         match (*event).clone() {
             TeFiltered(ref filtered_tests) => st.write_run_start(filtered_tests.len()),
             TeWait(ref test, padding) => st.write_test_start(test, padding),
-            TeResult(test, result, stdout) => {
+            TeResult(test, result, _) => {
                 try!(st.write_log(&test, &result));
                 try!(st.write_result(&result));
                 match result {
-                    TrOk => st.passed += 1,
                     TrIgnored => st.ignored += 1,
                     TrBench(bs) => {
-                        st.metrics.insert_metric(test.name.as_slice(),
+                        st.metrics.insert_metric(&test.name,
                                                  bs.ns_iter_summ.median,
                                                  bs.ns_iter_summ.max - bs.ns_iter_summ.min);
                         st.measured += 1
-                    }
-                    TrFailed => {
-                        st.failed += 1;
-                        st.failures.push((test, stdout));
                     }
                 }
                 Ok(())
@@ -498,12 +460,11 @@ pub fn run_tests_console(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> io::Resu
     let mut st = try!(ConsoleTestState::new(opts, None::<io::Stdout>));
     fn len_if_padded(t: &TestDescAndFn) -> usize {
         match t.testfn.padding() {
-            PadNone => 0,
-            PadOnRight => t.desc.name.as_slice().len(),
+            PadOnRight => t.desc.name.len(),
         }
     }
     if let Some(t) = tests.iter().max_by_key(|t| len_if_padded(*t)) {
-        let n = t.desc.name.as_slice();
+        let n = &t.desc.name;
         st.max_name_len = n.len();
     }
     try!(run_tests(opts, tests, |x| callback(&x, &mut st)));
@@ -513,13 +474,13 @@ pub fn run_tests_console(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> io::Resu
 #[test]
 fn should_sort_failures_before_printing_them() {
     let test_a = TestDesc {
-        name: StaticTestName("a"),
+        name: Cow::from("a"),
         ignore: false,
         should_panic: ShouldPanic::No,
     };
 
     let test_b = TestDesc {
-        name: StaticTestName("b"),
+        name: Cow::from("b"),
         ignore: false,
         should_panic: ShouldPanic::No,
     };
@@ -625,7 +586,7 @@ fn filter_tests(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> Vec<TestDescAndFn
         None => filtered,
         Some(ref filter) => {
             filtered.into_iter()
-                    .filter(|test| test.desc.name.as_slice().contains(&filter[..]))
+                    .filter(|test| test.desc.name.contains(&filter[..]))
                     .collect()
         }
     };
@@ -649,7 +610,7 @@ fn filter_tests(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> Vec<TestDescAndFn
     };
 
     // Sort the tests alphabetically
-    filtered.sort_by(|t1, t2| t1.desc.name.as_slice().cmp(t2.desc.name.as_slice()));
+    filtered.sort_by(|t1, t2| t1.desc.name.cmp(&t2.desc.name));
 
     filtered
 }
