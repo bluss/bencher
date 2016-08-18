@@ -8,20 +8,11 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-//! Support code for rustc's built in unit-test and micro-benchmarking
-//! framework.
+//! Simplified stable-compatible benchmark runner.
 //!
-//! Almost all user code will only be interested in `Bencher` and
-//! `black_box`. All other interactions (such as writing tests and
-//! benchmarks themselves) should be done via the `#[test]` and
-//! `#[bench]` attributes.
-//!
-//! See the [Testing Chapter](../book/testing.html) of the book for more details.
-
-// Currently, not much of this is meant for users. It is intended to
-// support the simplest interface possible for representing and
-// running tests while providing a base that other test frameworks may
-// build off of.
+//! Almost all user code will only be interested in `Bencher` and the
+//! macros that are used to describe benchmarker functions and
+//! the benchmark runner.
 
 extern crate libc;
 extern crate term;
