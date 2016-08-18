@@ -28,7 +28,7 @@ extern crate term;
 
 pub use self::TestFn::*;
 pub use self::ColorConfig::*;
-pub use self::TestResult::*;
+use self::TestResult::*;
 pub use self::TestName::*;
 use self::TestEvent::*;
 use self::NamePadding::*;
@@ -212,7 +212,7 @@ pub struct BenchSamples {
 }
 
 #[derive(Clone, PartialEq)]
-pub enum TestResult {
+enum TestResult {
     TrOk,
     TrFailed,
     TrIgnored,
@@ -587,7 +587,7 @@ enum TestEvent {
     TeResult(TestDesc, TestResult, Vec<u8>),
 }
 
-pub type MonitorMsg = (TestDesc, TestResult, Vec<u8>);
+type MonitorMsg = (TestDesc, TestResult, Vec<u8>);
 
 
 fn run_tests<F>(opts: &TestOpts, tests: Vec<TestDescAndFn>, mut callback: F) -> io::Result<()>
