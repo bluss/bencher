@@ -104,20 +104,12 @@ pub struct Bencher {
     pub bytes: u64,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum ShouldPanic {
-    No,
-    Yes,
-    YesWithMessage(&'static str),
-}
-
 // The definition of a single test. A test runner will run a list of
 // these.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TestDesc {
     pub name: TestName,
     pub ignore: bool,
-    pub should_panic: ShouldPanic,
 }
 
 #[derive(Clone)]
@@ -429,13 +421,11 @@ fn should_sort_failures_before_printing_them() {
     let test_a = TestDesc {
         name: Cow::from("a"),
         ignore: false,
-        should_panic: ShouldPanic::No,
     };
 
     let test_b = TestDesc {
         name: Cow::from("b"),
         ignore: false,
-        should_panic: ShouldPanic::No,
     };
 
     let mut st = ConsoleTestState {
