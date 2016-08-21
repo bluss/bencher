@@ -644,7 +644,7 @@ impl MetricMap {
 /// elimination.
 pub fn black_box<T>(dummy: T) -> T {
     unsafe {
-        let ret = ptr::read_volatile(&dummy as *const T);
+        let ret = ptr::read_volatile(&dummy);
         forget(dummy);
         ret
     }
