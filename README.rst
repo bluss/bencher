@@ -2,14 +2,20 @@
 
 A port of the libtest (unstable Rust) benchmark runner to Rust stable releases.
 Supports running benchmarks and filtering based on the name. Benchmark
-execution works exactly the same way and no more (caveat: black_box is still
-missing!).
+execution works exactly the same way and no more (Warning: black_box is not
+working perfectly!).
 
 Please read the `API documentation here`__ (it includes a usage example).
 
 __ https://bluss.github.io/bencher/
 
-**NOTE: Don't forget to compile in release mode**.
+|build_status|_ |crates|_
+
+.. |build_status| image:: https://travis-ci.org/bluss/bencher.svg?branch=master
+.. _build_status: https://travis-ci.org/bluss/bencher
+
+.. |crates| image:: https://meritbadge.herokuapp.com/bencher
+.. _crates: https://crates.io/crates/bencher
 
 Recent Changes
 --------------
@@ -29,7 +35,8 @@ Recent Changes
 Authors
 -------
 
-Principal authors of the benchmark and statistics code in the Rust project are:
+Principal original authors of the benchmark and statistics code in the Rust
+project are:
 
 + Brian Anderson
 + Graydon Hoare
