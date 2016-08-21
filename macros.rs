@@ -36,7 +36,7 @@ macro_rules! benchmark_main {
             use $crate::run_tests_console;
             let mut test_opts = TestOpts::default();
             // check to see if we should filter:
-            for arg in ::std::env::args().skip(1) {
+            for arg in ::std::env::args().skip(1).filter(|arg| *arg != "--bench") {
                 test_opts.filter = Some(arg);
                 break;
             }
