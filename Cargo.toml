@@ -15,6 +15,7 @@ keywords = ["benchmark"]
 [lib]
 name = "bencher"
 path = "lib.rs"
+bench = false
 
 [[bench]]
 name = "example"
