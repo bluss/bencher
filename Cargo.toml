@@ -16,4 +16,8 @@ keywords = ["benchmark"]
 name = "bencher"
 path = "lib.rs"
 
+[[bench]]
+name = "example"
+harness = false
+
 [dependencies]

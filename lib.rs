@@ -18,9 +18,18 @@
 //! This means that it easily happens that the optimizer removes too much of
 //! the computation that you tried to benchmark.
 //!
-//! One way to use this crate is to use it as dev-dependency and define
-//! the benchmarks in an example that you compile and run using cargo. Don't forget
-//! to use `--release`!.
+//! One way to use this crate is to use it as dev-dependency and setup
+//! cargo to compile a file in `benches/` that runs without the testing harness.
+//!
+//! In Cargo.toml:
+//!
+//! ```ignore
+//! [[bench]]
+//! name = "example"
+//! harness = false
+//! ```
+//!
+//! In benches/example.rs:
 //!
 //! ```
 //! #[macro_use]
@@ -35,9 +44,12 @@
 //! }
 //!
 //! fn b(bench: &mut Bencher) {
+//!     const N: usize = 1024;
 //!     bench.iter(|| {
-//!         String::new()
-//!     })
+//!         vec![0u8; N]
+//!     });
+//! 
+//!     bench.bytes = N as u64;
 //! }
 //!
 //! benchmark_group!(benches, a, b);
@@ -46,6 +58,9 @@
 //! # #[cfg(never)]
 //! # fn main() { }
 //! ```
+//!
+//! Use `cargo bench` as usual. A command line argument can be used to filter
+//! which benchmarks to run.
 
 pub use self::TestFn::*;
 use self::TestResult::*;
