@@ -14,9 +14,9 @@
 //! macros that are used to describe benchmarker functions and
 //! the benchmark runner.
 //!
-//! WARNING: There's no working black_box yet in this stable port of the benchmark runner.
-//! This means that it easily happens that the optimizer removes too much of
-//! the computation that you tried to benchmark.
+//! WARNING: There's no proper black_box yet in this stable port of the benchmark runner,
+//! only a workaround implementation. It may not work correctly and may have too
+//! large overhead.
 //!
 //! One way to use this crate is to use it as dev-dependency and setup
 //! cargo to compile a file in `benches/` that runs without the testing harness.
@@ -76,7 +76,9 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io;
 use std::iter::repeat;
+use std::mem::forget;
 use std::path::PathBuf;
+use std::ptr;
 use std::sync::mpsc::{channel, Sender};
 use std::time::{Instant, Duration};
 
@@ -633,13 +635,19 @@ impl MetricMap {
 
 // FIXME: We don't have black_box in stable rust
 
+/// WARNING: We don't have a proper black box in stable Rust. This is
+/// a workaround implementation, that may have a too big performance overhead,
+/// depending on operation, or it may fail to properly avoid having code optimized out.
+///
 /// A function that is opaque to the optimizer, to allow benchmarks to
 /// pretend to use outputs to assist in avoiding dead-code
 /// elimination.
-///
-/// This function is a no-op, and does not even read from `dummy`.
-fn black_box<T>(dummy: T) -> T {
-   dummy
+pub fn black_box<T>(dummy: T) -> T {
+    unsafe {
+        let ret = ptr::read_volatile(&dummy as *const T);
+        forget(dummy);
+        ret
+    }
 }
 
 
