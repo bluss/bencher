@@ -14,6 +14,14 @@ __ https://bluss.github.io/bencher/
 Recent Changes
 --------------
 
+- 0.1.1
+
+  - Add a provisional implementation of ``black_box``. It's not as good as the
+    original version. (Since reproducibility is key, we will use the same
+    implementation on both stable and nightly.)
+  - Add example for how to set up this to run with ``cargo bench`` on stable.
+    This crate is itself an example of that, see ``Cargo.toml`` and ``benches/``
+
 - 0.1.0
 
   - Initial release

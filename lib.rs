@@ -14,13 +14,22 @@
 //! macros that are used to describe benchmarker functions and
 //! the benchmark runner.
 //!
-//! WARNING: There's no working black_box yet in this stable port of the benchmark runner.
-//! This means that it easily happens that the optimizer removes too much of
-//! the computation that you tried to benchmark.
+//! WARNING: There's no proper black_box yet in this stable port of the benchmark runner,
+//! only a workaround implementation. It may not work correctly and may have too
+//! large overhead.
 //!
-//! One way to use this crate is to use it as dev-dependency and define
-//! the benchmarks in an example that you compile and run using cargo. Don't forget
-//! to use `--release`!.
+//! One way to use this crate is to use it as dev-dependency and setup
+//! cargo to compile a file in `benches/` that runs without the testing harness.
+//!
+//! In Cargo.toml:
+//!
+//! ```ignore
+//! [[bench]]
+//! name = "example"
+//! harness = false
+//! ```
+//!
+//! In benches/example.rs:
 //!
 //! ```
 //! #[macro_use]
@@ -35,9 +44,12 @@
 //! }
 //!
 //! fn b(bench: &mut Bencher) {
+//!     const N: usize = 1024;
 //!     bench.iter(|| {
-//!         String::new()
-//!     })
+//!         vec![0u8; N]
+//!     });
+//! 
+//!     bench.bytes = N as u64;
 //! }
 //!
 //! benchmark_group!(benches, a, b);
@@ -46,6 +58,9 @@
 //! # #[cfg(never)]
 //! # fn main() { }
 //! ```
+//!
+//! Use `cargo bench` as usual. A command line argument can be used to filter
+//! which benchmarks to run.
 
 pub use self::TestFn::*;
 use self::TestResult::*;
@@ -61,7 +76,9 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io;
 use std::iter::repeat;
+use std::mem::forget;
 use std::path::PathBuf;
+use std::ptr;
 use std::sync::mpsc::{channel, Sender};
 use std::time::{Instant, Duration};
 
@@ -618,13 +635,19 @@ impl MetricMap {
 
 // FIXME: We don't have black_box in stable rust
 
+/// WARNING: We don't have a proper black box in stable Rust. This is
+/// a workaround implementation, that may have a too big performance overhead,
+/// depending on operation, or it may fail to properly avoid having code optimized out.
+///
 /// A function that is opaque to the optimizer, to allow benchmarks to
 /// pretend to use outputs to assist in avoiding dead-code
 /// elimination.
-///
-/// This function is a no-op, and does not even read from `dummy`.
-fn black_box<T>(dummy: T) -> T {
-   dummy
+pub fn black_box<T>(dummy: T) -> T {
+    unsafe {
+        let ret = ptr::read_volatile(&dummy as *const T);
+        forget(dummy);
+        ret
+    }
 }
 
 
