@@ -14,7 +14,7 @@
 //! macros that are used to describe benchmarker functions and
 //! the benchmark runner.
 //!
-//! WARNING: There's no proper black_box yet in this stable port of the benchmark runner,
+//! WARNING: There's no proper `black_box` yet in this stable port of the benchmark runner,
 //! only a workaround implementation. It may not work correctly and may have too
 //! large overhead.
 //!
@@ -128,7 +128,7 @@ pub enum TestFn {
 impl TestFn {
     fn padding(&self) -> NamePadding {
         match *self {
-            StaticBenchFn(..) => PadOnRight,
+            StaticBenchFn(..) |
             DynBenchFn(..) => PadOnRight,
         }
     }
@@ -383,7 +383,7 @@ impl<T: Write> ConsoleTestState<T> {
                         self.ignored,
                         self.measured);
         try!(self.write_plain(&s));
-        return Ok(success);
+        Ok(success)
     }
 }
 
@@ -463,7 +463,7 @@ pub fn run_tests_console(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> io::Resu
         st.max_name_len = n.len();
     }
     try!(run_tests(opts, tests, |x| callback(&x, &mut st)));
-    return st.write_run_finish();
+    st.write_run_finish()
 }
 
 #[test]
@@ -595,7 +595,7 @@ fn run_test(_opts: &TestOpts,
             return;
         }
         StaticBenchFn(benchfn) => {
-            let bs = ::bench::benchmark(|harness| (benchfn.clone())(harness));
+            let bs = ::bench::benchmark(|harness| benchfn(harness));
             monitor_ch.send((desc, TrBench(bs), Vec::new())).unwrap();
             return;
         }
@@ -736,7 +736,7 @@ impl Bencher {
                 return summ5;
             }
 
-            total_run = total_run + loop_run;
+            total_run += loop_run;
             // Longest we ever run for is 3s.
             if total_run > Duration::from_secs(3) {
                 return summ5;
