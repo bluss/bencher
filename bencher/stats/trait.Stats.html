@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Stats` trait in crate `bencher`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Stats">
+
+    <title>bencher::stats::Stats - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css">
+    
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='../index.html'>bencher</a>::<wbr><a href='index.html'>stats</a></p><script>window.sidebarCurrent = {name: 'Stats', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content trait">
+<h1 class='fqn'><span class='in-band'>Trait <a href='../index.html'>bencher</a>::<wbr><a href='index.html'>stats</a>::<wbr><a class='trait' href=''>Stats</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a id='src-33' class='srclink' href='../../src/bencher/stats.rs.html#37-120' title='goto source code'>[src]</a></span></h1>
+<pre class='rust trait'>pub trait Stats {
+    fn <a href='#tymethod.sum' class='fnname'>sum</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a>;
+    fn <a href='#tymethod.min' class='fnname'>min</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a>;
+    fn <a href='#tymethod.max' class='fnname'>max</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a>;
+    fn <a href='#tymethod.mean' class='fnname'>mean</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a>;
+    fn <a href='#tymethod.median' class='fnname'>median</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a>;
+    fn <a href='#tymethod.var' class='fnname'>var</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a>;
+    fn <a href='#tymethod.std_dev' class='fnname'>std_dev</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a>;
+    fn <a href='#tymethod.std_dev_pct' class='fnname'>std_dev_pct</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a>;
+    fn <a href='#tymethod.median_abs_dev' class='fnname'>median_abs_dev</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a>;
+    fn <a href='#tymethod.median_abs_dev_pct' class='fnname'>median_abs_dev_pct</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a>;
+    fn <a href='#tymethod.percentile' class='fnname'>percentile</a>(&amp;self, pct: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a>;
+    fn <a href='#tymethod.quartiles' class='fnname'>quartiles</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.tuple.html'>(</a><a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a>, <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a>, <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a><a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.tuple.html'>)</a>;
+    fn <a href='#tymethod.iqr' class='fnname'>iqr</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a>;
+}</pre><div class='docblock'><p>Trait that provides simple descriptive statistics on a univariate set of numeric samples.</p>
+</div>
+            <h2 id='required-methods'>Required Methods</h2>
+            <div class='methods'>
+        <h3 id='tymethod.sum' class='method stab '><span id='sum.v' class='invisible'><code>fn <a href='#tymethod.sum' class='fnname'>sum</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a></code></span></h3><div class='docblock'><p>Sum of the samples.</p>
+
+<p>Note: this method sacrifices performance at the altar of accuracy
+Depends on IEEE-754 arithmetic guarantees. See proof of correctness at:
+<a href="http://www.cs.cmu.edu/%7Equake-papers/robust-arithmetic.ps">&quot;Adaptive Precision Floating-Point Arithmetic and Fast Robust Geometric Predicates&quot;</a></p>
+</div><h3 id='tymethod.min' class='method stab '><span id='min.v' class='invisible'><code>fn <a href='#tymethod.min' class='fnname'>min</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a></code></span></h3><div class='docblock'><p>Minimum value of the samples.</p>
+</div><h3 id='tymethod.max' class='method stab '><span id='max.v' class='invisible'><code>fn <a href='#tymethod.max' class='fnname'>max</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a></code></span></h3><div class='docblock'><p>Maximum value of the samples.</p>
+</div><h3 id='tymethod.mean' class='method stab '><span id='mean.v' class='invisible'><code>fn <a href='#tymethod.mean' class='fnname'>mean</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a></code></span></h3><div class='docblock'><p>Arithmetic mean (average) of the samples: sum divided by sample-count.</p>
+
+<p>See: <a href="https://en.wikipedia.org/wiki/Arithmetic_mean">https://en.wikipedia.org/wiki/Arithmetic_mean</a></p>
+</div><h3 id='tymethod.median' class='method stab '><span id='median.v' class='invisible'><code>fn <a href='#tymethod.median' class='fnname'>median</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a></code></span></h3><div class='docblock'><p>Median of the samples: value separating the lower half of the samples from the higher half.
+Equal to <code>self.percentile(50.0)</code>.</p>
+
+<p>See: <a href="https://en.wikipedia.org/wiki/Median">https://en.wikipedia.org/wiki/Median</a></p>
+</div><h3 id='tymethod.var' class='method stab '><span id='var.v' class='invisible'><code>fn <a href='#tymethod.var' class='fnname'>var</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a></code></span></h3><div class='docblock'><p>Variance of the samples: bias-corrected mean of the squares of the differences of each
+sample from the sample mean. Note that this calculates the <em>sample variance</em> rather than the
+population variance, which is assumed to be unknown. It therefore corrects the <code>(n-1)/n</code>
+bias that would appear if we calculated a population variance, by dividing by <code>(n-1)</code> rather
+than <code>n</code>.</p>
+
+<p>See: <a href="https://en.wikipedia.org/wiki/Variance">https://en.wikipedia.org/wiki/Variance</a></p>
+</div><h3 id='tymethod.std_dev' class='method stab '><span id='std_dev.v' class='invisible'><code>fn <a href='#tymethod.std_dev' class='fnname'>std_dev</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a></code></span></h3><div class='docblock'><p>Standard deviation: the square root of the sample variance.</p>
+
+<p>Note: this is not a robust statistic for non-normal distributions. Prefer the
+<code>median_abs_dev</code> for unknown distributions.</p>
+
+<p>See: <a href="https://en.wikipedia.org/wiki/Standard_deviation">https://en.wikipedia.org/wiki/Standard_deviation</a></p>
+</div><h3 id='tymethod.std_dev_pct' class='method stab '><span id='std_dev_pct.v' class='invisible'><code>fn <a href='#tymethod.std_dev_pct' class='fnname'>std_dev_pct</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a></code></span></h3><div class='docblock'><p>Standard deviation as a percent of the mean value. See <code>std_dev</code> and <code>mean</code>.</p>
+
+<p>Note: this is not a robust statistic for non-normal distributions. Prefer the
+<code>median_abs_dev_pct</code> for unknown distributions.</p>
+</div><h3 id='tymethod.median_abs_dev' class='method stab '><span id='median_abs_dev.v' class='invisible'><code>fn <a href='#tymethod.median_abs_dev' class='fnname'>median_abs_dev</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a></code></span></h3><div class='docblock'><p>Scaled median of the absolute deviations of each sample from the sample median. This is a
+robust (distribution-agnostic) estimator of sample variability. Use this in preference to
+<code>std_dev</code> if you cannot assume your sample is normally distributed. Note that this is scaled
+by the constant <code>1.4826</code> to allow its use as a consistent estimator for the standard
+deviation.</p>
+
+<p>See: <a href="http://en.wikipedia.org/wiki/Median_absolute_deviation">http://en.wikipedia.org/wiki/Median_absolute_deviation</a></p>
+</div><h3 id='tymethod.median_abs_dev_pct' class='method stab '><span id='median_abs_dev_pct.v' class='invisible'><code>fn <a href='#tymethod.median_abs_dev_pct' class='fnname'>median_abs_dev_pct</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a></code></span></h3><div class='docblock'><p>Median absolute deviation as a percent of the median. See <code>median_abs_dev</code> and <code>median</code>.</p>
+</div><h3 id='tymethod.percentile' class='method stab '><span id='percentile.v' class='invisible'><code>fn <a href='#tymethod.percentile' class='fnname'>percentile</a>(&amp;self, pct: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a></code></span></h3><div class='docblock'><p>Percentile: the value below which <code>pct</code> percent of the values in <code>self</code> fall. For example,
+percentile(95.0) will return the value <code>v</code> such that 95% of the samples <code>s</code> in <code>self</code>
+satisfy <code>s &lt;= v</code>.</p>
+
+<p>Calculated by linear interpolation between closest ranks.</p>
+
+<p>See: <a href="http://en.wikipedia.org/wiki/Percentile">http://en.wikipedia.org/wiki/Percentile</a></p>
+</div><h3 id='tymethod.quartiles' class='method stab '><span id='quartiles.v' class='invisible'><code>fn <a href='#tymethod.quartiles' class='fnname'>quartiles</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.tuple.html'>(</a><a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a>, <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a>, <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a><a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.tuple.html'>)</a></code></span></h3><div class='docblock'><p>Quartiles of the sample: three values that divide the sample into four equal groups, each
+with 1/4 of the data. The middle value is the median. See <code>median</code> and <code>percentile</code>. This
+function may calculate the 3 quartiles more efficiently than 3 calls to <code>percentile</code>, but
+is otherwise equivalent.</p>
+
+<p>See also: <a href="https://en.wikipedia.org/wiki/Quartile">https://en.wikipedia.org/wiki/Quartile</a></p>
+</div><h3 id='tymethod.iqr' class='method stab '><span id='iqr.v' class='invisible'><code>fn <a href='#tymethod.iqr' class='fnname'>iqr</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a></code></span></h3><div class='docblock'><p>Inter-quartile range: the difference between the 25th percentile (1st quartile) and the 75th
+percentile (3rd quartile). See <code>quartiles</code>.</p>
+
+<p>See also: <a href="https://en.wikipedia.org/wiki/Interquartile_range">https://en.wikipedia.org/wiki/Interquartile_range</a></p>
+</div></div>
+        <h2 id='implementors'>Implementors</h2>
+        <ul class='item-list' id='implementors-list'>
+    <li><code>impl Stats for <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.slice.html'>[</a><a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a><a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.slice.html'>]</a></code></li>
+</ul><script type="text/javascript" async
+                         src="../../implementors/bencher/stats/trait.Stats.js">
+                 </script></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                    <dt>+</dt>
+                    <dd>Collapse/expand all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "bencher";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../../jquery.js"></script>
+    <script src="../../main.js"></script>
+    <script src="../../extra.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>
