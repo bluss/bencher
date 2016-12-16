@@ -70,7 +70,6 @@ use self::OutputLocation::*;
 
 use std::borrow::Cow;
 use std::cmp;
-use std::collections::BTreeMap;
 use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
@@ -175,22 +174,6 @@ pub struct TestDescAndFn {
     pub testfn: TestFn,
 }
 
-#[derive(Clone, PartialEq, Debug, Copy)]
-struct Metric {
-    value: f64,
-    noise: f64,
-}
-
-#[derive(PartialEq)]
-struct MetricMap(BTreeMap<String, Metric>);
-
-impl Clone for MetricMap {
-    fn clone(&self) -> MetricMap {
-        let MetricMap(ref map) = *self;
-        MetricMap(map.clone())
-    }
-}
-
 #[derive(Default)]
 pub struct TestOpts {
     pub filter: Option<String>,
@@ -227,13 +210,12 @@ struct ConsoleTestState<T> {
     failed: usize,
     ignored: usize,
     measured: usize,
-    metrics: MetricMap,
     failures: Vec<(TestDesc, Vec<u8>)>,
     max_name_len: usize, // number of columns to fill when aligning names
 }
 
-impl<T: Write> ConsoleTestState<T> {
-    pub fn new(opts: &TestOpts, _: Option<T>) -> io::Result<ConsoleTestState<io::Stdout>> {
+impl ConsoleTestState<()> {
+    pub fn new(opts: &TestOpts) -> io::Result<ConsoleTestState<io::Stdout>> {
         let log_out = match opts.logfile {
             Some(ref path) => Some(try!(File::create(path))),
             None => None,
@@ -249,12 +231,13 @@ impl<T: Write> ConsoleTestState<T> {
             failed: 0,
             ignored: 0,
             measured: 0,
-            metrics: MetricMap::new(),
             failures: Vec::new(),
             max_name_len: 0,
         })
     }
+}
 
+impl<T: Write> ConsoleTestState<T> {
     pub fn write_ignored(&mut self) -> io::Result<()> {
         self.write_short_result("ignored", "i")
     }
@@ -439,10 +422,7 @@ pub fn run_tests_console(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> io::Resu
                 try!(st.write_result(&result));
                 match result {
                     TrIgnored => st.ignored += 1,
-                    TrBench(bs) => {
-                        st.metrics.insert_metric(&test.name,
-                                                 bs.ns_iter_summ.median,
-                                                 bs.ns_iter_summ.max - bs.ns_iter_summ.min);
+                    TrBench(_) => {
                         st.measured += 1
                     }
                 }
@@ -451,7 +431,7 @@ pub fn run_tests_console(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> io::Resu
         }
     }
 
-    let mut st = try!(ConsoleTestState::new(opts, None::<io::Stdout>));
+    let mut st = try!(ConsoleTestState::new(opts));
     fn len_if_padded(t: &TestDescAndFn) -> usize {
         match t.testfn.padding() {
             PadOnRight => t.desc.name.len(),
@@ -487,7 +467,6 @@ fn should_sort_failures_before_printing_them() {
         ignored: 0,
         measured: 0,
         max_name_len: 10,
-        metrics: MetricMap::new(),
         failures: vec![(test_b, Vec::new()), (test_a, Vec::new())],
     };
 
@@ -592,34 +571,6 @@ fn run_test(_opts: &TestOpts,
             let bs = ::bench::benchmark(|harness| benchfn(harness));
             return (desc, TrBench(bs), Vec::new());
         }
-    }
-}
-
-impl MetricMap {
-    pub fn new() -> MetricMap {
-        MetricMap(BTreeMap::new())
-    }
-
-    /// Insert a named `value` (+/- `noise`) metric into the map. The value
-    /// must be non-negative. The `noise` indicates the uncertainty of the
-    /// metric, which doubles as the "noise range" of acceptable
-    /// pairwise-regressions on this named value, when comparing from one
-    /// metric to the next using `compare_to_old`.
-    ///
-    /// If `noise` is positive, then it means this metric is of a value
-    /// you want to see grow smaller, so a change larger than `noise` in the
-    /// positive direction represents a regression.
-    ///
-    /// If `noise` is negative, then it means this metric is of a value
-    /// you want to see grow larger, so a change larger than `noise` in the
-    /// negative direction represents a regression.
-    pub fn insert_metric(&mut self, name: &str, value: f64, noise: f64) {
-        let m = Metric {
-            value: value,
-            noise: noise,
-        };
-        let MetricMap(ref mut map) = *self;
-        map.insert(name.to_owned(), m);
     }
 }
 
@@ -784,30 +735,3 @@ pub mod bench {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::MetricMap;
-
-    #[test]
-    pub fn test_metricmap_compare() {
-        let mut m1 = MetricMap::new();
-        let mut m2 = MetricMap::new();
-        m1.insert_metric("in-both-noise", 1000.0, 200.0);
-        m2.insert_metric("in-both-noise", 1100.0, 200.0);
-
-        m1.insert_metric("in-first-noise", 1000.0, 2.0);
-        m2.insert_metric("in-second-noise", 1000.0, 2.0);
-
-        m1.insert_metric("in-both-want-downwards-but-regressed", 1000.0, 10.0);
-        m2.insert_metric("in-both-want-downwards-but-regressed", 2000.0, 10.0);
-
-        m1.insert_metric("in-both-want-downwards-and-improved", 2000.0, 10.0);
-        m2.insert_metric("in-both-want-downwards-and-improved", 1000.0, 10.0);
-
-        m1.insert_metric("in-both-want-upwards-but-regressed", 2000.0, -10.0);
-        m2.insert_metric("in-both-want-upwards-but-regressed", 1000.0, -10.0);
-
-        m1.insert_metric("in-both-want-upwards-and-improved", 1000.0, -10.0);
-        m2.insert_metric("in-both-want-upwards-and-improved", 2000.0, -10.0);
-    }
-}
