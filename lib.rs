@@ -79,7 +79,6 @@ use std::iter::repeat;
 use std::mem::forget;
 use std::path::PathBuf;
 use std::ptr;
-use std::sync::mpsc::{channel, Sender};
 use std::time::{Instant, Duration};
 
 pub mod stats;
@@ -526,14 +525,11 @@ fn run_tests<F>(opts: &TestOpts, tests: Vec<TestDescAndFn>, mut callback: F) -> 
 
     let filtered_benchs_and_metrics = filtered_tests;
 
-    let (tx, rx) = channel::<MonitorMsg>();
-
     // All benchmarks run at the end, in serial.
     // (this includes metric fns)
     for b in filtered_benchs_and_metrics {
         try!(callback(TeWait(b.desc.clone(), b.testfn.padding())));
-        run_test(opts, false, b, tx.clone());
-        let (test, result, stdout) = rx.recv().unwrap();
+        let (test, result, stdout) = run_test(opts, false, b);
         try!(callback(TeResult(test, result, stdout)));
     }
     Ok(())
@@ -578,26 +574,23 @@ fn filter_tests(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> Vec<TestDescAndFn
 
 fn run_test(_opts: &TestOpts,
             force_ignore: bool,
-            test: TestDescAndFn,
-            monitor_ch: Sender<MonitorMsg>) {
+            test: TestDescAndFn) -> MonitorMsg
+{
 
     let TestDescAndFn {desc, testfn} = test;
 
     if force_ignore || desc.ignore {
-        monitor_ch.send((desc, TrIgnored, Vec::new())).unwrap();
-        return;
+        return (desc, TrIgnored, Vec::new());
     }
 
     match testfn {
         DynBenchFn(bencher) => {
             let bs = ::bench::benchmark(|harness| bencher.run(harness));
-            monitor_ch.send((desc, TrBench(bs), Vec::new())).unwrap();
-            return;
+            return (desc, TrBench(bs), Vec::new());
         }
         StaticBenchFn(benchfn) => {
             let bs = ::bench::benchmark(|harness| benchfn(harness));
-            monitor_ch.send((desc, TrBench(bs), Vec::new())).unwrap();
-            return;
+            return (desc, TrBench(bs), Vec::new());
         }
     }
 }
