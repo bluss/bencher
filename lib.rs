@@ -14,9 +14,9 @@
 //! macros that are used to describe benchmarker functions and
 //! the benchmark runner.
 //!
-//! WARNING: There's no proper `black_box` yet in this stable port of the benchmark runner,
-//! only a workaround implementation. It may not work correctly and may have too
-//! large overhead.
+//! NOTE: There's no proper `black_box` yet in this stable port of the
+//! benchmark runner, only a workaround implementation. It may not work
+//! exactly like the upstream `test::black_box`.
 //!
 //! One way to use this crate is to use it as dev-dependency and setup
 //! cargo to compile a file in `benches/` that runs without the testing harness.
@@ -579,9 +579,10 @@ fn run_test(_opts: &TestOpts,
 
 // FIXME: We don't have black_box in stable rust
 
-/// WARNING: We don't have a proper black box in stable Rust. This is
+/// NOTE: We don't have a proper black box in stable Rust. This is
 /// a workaround implementation, that may have a too big performance overhead,
-/// depending on operation, or it may fail to properly avoid having code optimized out.
+/// depending on operation, or it may fail to properly avoid having code
+/// optimized out. It is good enough that it is used by default.
 ///
 /// A function that is opaque to the optimizer, to allow benchmarks to
 /// pretend to use outputs to assist in avoiding dead-code
