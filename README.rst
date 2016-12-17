@@ -7,7 +7,7 @@ working perfectly!).
 
 Please read the `API documentation here`__ (it includes a usage example).
 
-__ https://bluss.github.io/bencher/
+__ https://docs.rs/bencher/
 
 |build_status|_ |crates|_
 
@@ -19,6 +19,10 @@ __ https://bluss.github.io/bencher/
 
 Recent Changes
 --------------
+
+- 0.1.2
+
+  - Remove unused components (speeds up build time of the crate)
 
 - 0.1.1
 
