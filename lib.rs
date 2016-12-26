@@ -83,6 +83,8 @@ use std::time::{Instant, Duration};
 pub mod stats;
 mod macros;
 
+const SINGLE_SAMPLE_THRESHOLD_NS:u64 = 500_000_000; // half a sec
+
 // The name of a test. By convention this follows the rules for rust
 // paths; i.e. it should be a series of identifiers separated by double
 // colons. This way if some test runner wants to arrange the tests
@@ -370,12 +372,12 @@ impl<T: Write> ConsoleTestState<T> {
 }
 
 // Format a number with thousands separators
-fn fmt_thousands_sep(mut n: usize, sep: char) -> String {
+fn fmt_thousands_sep(mut n: u64, sep: char) -> String {
     use std::fmt::Write;
     let mut output = String::new();
     let mut trailing = false;
     for &pow in &[9, 6, 3, 0] {
-        let base = 10_usize.pow(pow);
+        let base = 10_u64.pow(pow);
         if pow == 0 || trailing || n / base != 0 {
             if !trailing {
                 output.write_fmt(format_args!("{}", n / base)).unwrap();
@@ -397,13 +399,19 @@ pub fn fmt_bench_samples(bs: &BenchSamples) -> String {
     use std::fmt::Write;
     let mut output = String::new();
 
-    let median = bs.ns_iter_summ.median as usize;
-    let deviation = (bs.ns_iter_summ.max - bs.ns_iter_summ.min) as usize;
+    let median = bs.ns_iter_summ.median as u64;
+    let deviation = (bs.ns_iter_summ.max - bs.ns_iter_summ.min) as u64;
 
-    output.write_fmt(format_args!("{:>11} ns/iter (+/- {})",
-                                  fmt_thousands_sep(median, ','),
-                                  fmt_thousands_sep(deviation, ',')))
-          .unwrap();
+    if deviation == 0 && median > SINGLE_SAMPLE_THRESHOLD_NS {
+        output.write_fmt(format_args!("{:>11} ms (single sample)",
+                                          fmt_thousands_sep(median / 1_000_000, ',')))
+              .unwrap();
+    } else {
+        output.write_fmt(format_args!("{:>11} ns/iter (+/- {})",
+                                          fmt_thousands_sep(median, ','),
+                                          fmt_thousands_sep(deviation, ',')))
+              .unwrap();
+    }
     if bs.mb_s != 0 {
         output.write_fmt(format_args!(" = {} MB/s", bs.mb_s)).unwrap();
     }
@@ -635,6 +643,11 @@ impl Bencher {
         // Initial bench run to get ballpark figure.
         let mut n = 1;
         self.bench_n(n, |x| f(x));
+
+        // short path for painfully slow examples (=> single sample)
+        if self.ns_per_iter() > SINGLE_SAMPLE_THRESHOLD_NS {
+            return stats::Summary::new(&[self.ns_per_iter() as f64]);
+        }
 
         // Try to estimate iter count for 1ms falling back to 1m
         // iterations if first run took < 1ns.
