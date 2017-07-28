@@ -345,7 +345,7 @@ impl<T: Write> ConsoleTestState<T> {
     }
 
     pub fn write_run_finish(&mut self) -> io::Result<bool> {
-        assert!(self.passed + self.failed + self.ignored + self.measured == self.total);
+        assert_eq!(self.passed + self.failed + self.ignored + self.measured, self.total);
 
         let success = self.failed == 0;
         if !success {
@@ -565,11 +565,11 @@ fn run_test(_opts: &TestOpts,
     match testfn {
         DynBenchFn(bencher) => {
             let bs = ::bench::benchmark(|harness| bencher.run(harness));
-            return (desc, TrBench(bs), Vec::new());
+            (desc, TrBench(bs), Vec::new())
         }
         StaticBenchFn(benchfn) => {
             let bs = ::bench::benchmark(|harness| benchfn(harness));
-            return (desc, TrBench(bs), Vec::new());
+            (desc, TrBench(bs), Vec::new())
         }
     }
 }
