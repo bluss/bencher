@@ -20,6 +20,11 @@ __ https://docs.rs/bencher/
 Recent Changes
 --------------
 
+- 0.1.3
+
+  - Fix doc URL
+  - Fix clippy warnings (by @llogiq)
+
 - 0.1.2
 
   - Remove unused components (speeds up build time of the crate)
