@@ -20,6 +20,10 @@ __ https://docs.rs/bencher/
 Recent Changes
 --------------
 
+- 0.1.4
+
+  - Add crates.io categories
+
 - 0.1.3
 
   - Fix doc URL

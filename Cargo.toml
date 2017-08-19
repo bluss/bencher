@@ -1,7 +1,7 @@
 [package]
 authors = ["bluss", "The Rust Project Developers"]
 name = "bencher"
-version = "0.1.3"
+version = "0.1.4"
 
 license = "MIT/Apache-2.0"
 
@@ -11,6 +11,7 @@ documentation = "https://docs.rs/bencher/"
 description = "A port of the libtest (unstable Rust) benchmark runner to Rust stable releases. Supports running benchmarks and filtering based on the name. Benchmark execution works exactly the same way and no more (caveat: black_box is still missing!)."
 
 keywords = ["benchmark"]
+categories = ["development-tools::profiling", "rust-patterns"]
 
 [lib]
 name = "bencher"
@@ -22,3 +23,7 @@ name = "example"
 harness = false
 
 [dependencies]
+
+[package.metadata.release]
+no-dev-version = true
+
