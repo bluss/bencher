@@ -19,7 +19,10 @@ macro_rules! benchmark_group {
             )+
             benches
         }
-    }
+    };
+    ($group_name:ident, $($function:path,)+) => {
+        benchmark_group!($group_name, $($function),+);
+    };
 }
 
 
@@ -45,5 +48,8 @@ macro_rules! benchmark_main {
             )+
             run_tests_console(&test_opts, benches).unwrap();
         }
-    }
+    };
+    ($($group_name:path,)+) => {
+        benchmark_main!($($group_name),+);
+    };
 }
