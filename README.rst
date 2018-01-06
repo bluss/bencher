@@ -20,6 +20,10 @@ __ https://docs.rs/bencher/
 Recent Changes
 --------------
 
+- 0.1.5
+
+  - Support trailing commas in the macros by @tbu-
+
 - 0.1.4
 
   - Add crates.io categories
