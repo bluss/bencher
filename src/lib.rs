@@ -48,7 +48,7 @@
 //!     bench.iter(|| {
 //!         vec![0u8; N]
 //!     });
-//! 
+//!
 //!     bench.bytes = N as u64;
 //! }
 //!
@@ -62,26 +62,26 @@
 //! Use `cargo bench` as usual. A command line argument can be used to filter
 //! which benchmarks to run.
 
-pub use self::TestFn::*;
-use self::TestResult::*;
-use self::TestEvent::*;
 use self::NamePadding::*;
 use self::OutputLocation::*;
+use self::TestEvent::*;
+pub use self::TestFn::*;
+use self::TestResult::*;
 
 use std::borrow::Cow;
 use std::cmp;
 use std::fmt;
 use std::fs::File;
-use std::io::prelude::*;
 use std::io;
+use std::io::prelude::*;
 use std::iter::repeat;
 use std::mem::forget;
 use std::path::PathBuf;
 use std::ptr;
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
-pub mod stats;
 mod macros;
+pub mod stats;
 
 // The name of a test. By convention this follows the rules for rust
 // paths; i.e. it should be a series of identifiers separated by double
@@ -120,14 +120,13 @@ pub trait TDynBenchFn: Send {
 // to support isolation of tests into threads.
 pub enum TestFn {
     StaticBenchFn(fn(&mut Bencher)),
-    DynBenchFn(Box<TDynBenchFn + 'static>),
+    DynBenchFn(Box<dyn TDynBenchFn + 'static>),
 }
 
 impl TestFn {
     fn padding(&self) -> NamePadding {
         match *self {
-            StaticBenchFn(..) |
-            DynBenchFn(..) => PadOnRight,
+            StaticBenchFn(..) | DynBenchFn(..) => PadOnRight,
         }
     }
 }
@@ -217,7 +216,7 @@ struct ConsoleTestState<T> {
 impl ConsoleTestState<()> {
     pub fn new(opts: &TestOpts) -> io::Result<ConsoleTestState<io::Stdout>> {
         let log_out = match opts.logfile {
-            Some(ref path) => Some(try!(File::create(path))),
+            Some(ref path) => Some(File::create(path)?),
             None => None,
         };
         let out = Raw(io::stdout());
@@ -246,41 +245,30 @@ impl<T: Write> ConsoleTestState<T> {
         self.write_pretty("bench")
     }
 
-    pub fn write_short_result(&mut self, verbose: &str, quiet: &str)
-                              -> io::Result<()> {
+    pub fn write_short_result(&mut self, verbose: &str, quiet: &str) -> io::Result<()> {
         if self.quiet {
             self.write_pretty(quiet)
         } else {
-            try!(self.write_pretty(verbose));
+            self.write_pretty(verbose)?;
             self.write_plain("\n")
         }
     }
 
     pub fn write_pretty(&mut self, word: &str) -> io::Result<()> {
-        match self.out {
-            Raw(ref mut stdout) => {
-                try!(stdout.write_all(word.as_bytes()));
-                stdout.flush()
-            }
-        }
+        let Raw(ref mut stdout) = self.out;
+        stdout.write_all(word.as_bytes())?;
+        stdout.flush()
     }
 
     pub fn write_plain(&mut self, s: &str) -> io::Result<()> {
-        match self.out {
-            Raw(ref mut stdout) => {
-                try!(stdout.write_all(s.as_bytes()));
-                stdout.flush()
-            }
-        }
+        let Raw(ref mut stdout) = self.out;
+        stdout.write_all(s.as_bytes())?;
+        stdout.flush()
     }
 
     pub fn write_run_start(&mut self, len: usize) -> io::Result<()> {
         self.total = len;
-        let noun = if len != 1 {
-            "tests"
-        } else {
-            "test"
-        };
+        let noun = if len != 1 { "tests" } else { "test" };
         self.write_plain(&format!("\nrunning {} {}\n", len, noun))
     }
 
@@ -297,7 +285,7 @@ impl<T: Write> ConsoleTestState<T> {
         match *result {
             TrIgnored => self.write_ignored(),
             TrBench(ref bs) => {
-                try!(self.write_bench());
+                self.write_bench()?;
                 self.write_plain(&format!(": {}\n", fmt_bench_samples(bs)))
             }
         }
@@ -307,19 +295,21 @@ impl<T: Write> ConsoleTestState<T> {
         match self.log_out {
             None => Ok(()),
             Some(ref mut o) => {
-                let s = format!("{} {}\n",
-                                match *result {
-                                    TrIgnored => "ignored".to_owned(),
-                                    TrBench(ref bs) => fmt_bench_samples(bs),
-                                },
-                                test.name);
+                let s = format!(
+                    "{} {}\n",
+                    match *result {
+                        TrIgnored => "ignored".to_owned(),
+                        TrBench(ref bs) => fmt_bench_samples(bs),
+                    },
+                    test.name
+                );
                 o.write_all(s.as_bytes())
             }
         }
     }
 
     pub fn write_failures(&mut self) -> io::Result<()> {
-        try!(self.write_plain("\nfailures:\n"));
+        self.write_plain("\nfailures:\n")?;
         let mut failures = Vec::new();
         let mut fail_out = String::new();
         for &(ref f, ref stdout) in &self.failures {
@@ -332,39 +322,41 @@ impl<T: Write> ConsoleTestState<T> {
             }
         }
         if !fail_out.is_empty() {
-            try!(self.write_plain("\n"));
-            try!(self.write_plain(&fail_out));
+            self.write_plain("\n")?;
+            self.write_plain(&fail_out)?;
         }
 
-        try!(self.write_plain("\nfailures:\n"));
+        self.write_plain("\nfailures:\n")?;
         failures.sort();
         for name in &failures {
-            try!(self.write_plain(&format!("    {}\n", name)));
+            self.write_plain(&format!("    {}\n", name))?;
         }
         Ok(())
     }
 
     pub fn write_run_finish(&mut self) -> io::Result<bool> {
-        assert_eq!(self.passed + self.failed + self.ignored + self.measured, self.total);
+        assert_eq!(
+            self.passed + self.failed + self.ignored + self.measured,
+            self.total
+        );
 
         let success = self.failed == 0;
         if !success {
-            try!(self.write_failures());
+            self.write_failures()?;
         }
 
-        try!(self.write_plain("\ntest result: "));
+        self.write_plain("\ntest result: ")?;
         if success {
             // There's no parallelism at this point so it's safe to use color
-            try!(self.write_pretty("ok"));
+            self.write_pretty("ok")?;
         } else {
-            try!(self.write_pretty("FAILED"));
+            self.write_pretty("FAILED")?;
         }
-        let s = format!(". {} passed; {} failed; {} ignored; {} measured\n\n",
-                        self.passed,
-                        self.failed,
-                        self.ignored,
-                        self.measured);
-        try!(self.write_plain(&s));
+        let s = format!(
+            ". {} passed; {} failed; {} ignored; {} measured\n\n",
+            self.passed, self.failed, self.ignored, self.measured
+        );
+        self.write_plain(&s)?;
         Ok(success)
     }
 }
@@ -400,38 +392,40 @@ pub fn fmt_bench_samples(bs: &BenchSamples) -> String {
     let median = bs.ns_iter_summ.median as usize;
     let deviation = (bs.ns_iter_summ.max - bs.ns_iter_summ.min) as usize;
 
-    output.write_fmt(format_args!("{:>11} ns/iter (+/- {})",
-                                  fmt_thousands_sep(median, ','),
-                                  fmt_thousands_sep(deviation, ',')))
-          .unwrap();
+    output
+        .write_fmt(format_args!(
+            "{:>11} ns/iter (+/- {})",
+            fmt_thousands_sep(median, ','),
+            fmt_thousands_sep(deviation, ',')
+        ))
+        .unwrap();
     if bs.mb_s != 0 {
-        output.write_fmt(format_args!(" = {} MB/s", bs.mb_s)).unwrap();
+        output
+            .write_fmt(format_args!(" = {} MB/s", bs.mb_s))
+            .unwrap();
     }
     output
 }
 
 // A simple console test runner
 pub fn run_tests_console(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> io::Result<bool> {
-
     fn callback<T: Write>(event: &TestEvent, st: &mut ConsoleTestState<T>) -> io::Result<()> {
         match (*event).clone() {
             TeFiltered(ref filtered_tests) => st.write_run_start(filtered_tests.len()),
             TeWait(ref test, padding) => st.write_test_start(test, padding),
             TeResult(test, result, _) => {
-                try!(st.write_log(&test, &result));
-                try!(st.write_result(&result));
+                st.write_log(&test, &result)?;
+                st.write_result(&result)?;
                 match result {
                     TrIgnored => st.ignored += 1,
-                    TrBench(_) => {
-                        st.measured += 1
-                    }
+                    TrBench(_) => st.measured += 1,
                 }
                 Ok(())
             }
         }
     }
 
-    let mut st = try!(ConsoleTestState::new(opts));
+    let mut st = ConsoleTestState::new(opts)?;
     fn len_if_padded(t: &TestDescAndFn) -> usize {
         match t.testfn.padding() {
             PadOnRight => t.desc.name.len(),
@@ -441,7 +435,7 @@ pub fn run_tests_console(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> io::Resu
         let n = &t.desc.name;
         st.max_name_len = n.len();
     }
-    try!(run_tests(opts, tests, |x| callback(&x, &mut st)));
+    run_tests(opts, tests, |x| callback(&x, &mut st))?;
     st.write_run_finish()
 }
 
@@ -489,27 +483,24 @@ enum TestEvent {
 
 type MonitorMsg = (TestDesc, TestResult, Vec<u8>);
 
-
 fn run_tests<F>(opts: &TestOpts, tests: Vec<TestDescAndFn>, mut callback: F) -> io::Result<()>
-    where F: FnMut(TestEvent) -> io::Result<()>
+where
+    F: FnMut(TestEvent) -> io::Result<()>,
 {
-
     let filtered_tests = filter_tests(opts, tests);
 
-    let filtered_descs = filtered_tests.iter()
-                                       .map(|t| t.desc.clone())
-                                       .collect();
+    let filtered_descs = filtered_tests.iter().map(|t| t.desc.clone()).collect();
 
-    try!(callback(TeFiltered(filtered_descs)));
+    callback(TeFiltered(filtered_descs))?;
 
     let filtered_benchs_and_metrics = filtered_tests;
 
     // All benchmarks run at the end, in serial.
     // (this includes metric fns)
     for b in filtered_benchs_and_metrics {
-        try!(callback(TeWait(b.desc.clone(), b.testfn.padding())));
+        callback(TeWait(b.desc.clone(), b.testfn.padding()))?;
         let (test, result, stdout) = run_test(opts, false, b);
-        try!(callback(TeResult(test, result, stdout)));
+        callback(TeResult(test, result, stdout))?;
     }
     Ok(())
 }
@@ -520,11 +511,10 @@ fn filter_tests(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> Vec<TestDescAndFn
     // Remove tests that don't match the test filter
     filtered = match opts.filter {
         None => filtered,
-        Some(ref filter) => {
-            filtered.into_iter()
-                    .filter(|test| test.desc.name.contains(&filter[..]))
-                    .collect()
-        }
+        Some(ref filter) => filtered
+            .into_iter()
+            .filter(|test| test.desc.name.contains(&filter[..]))
+            .collect(),
     };
 
     // Maybe pull out the ignored test and unignore them
@@ -533,9 +523,12 @@ fn filter_tests(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> Vec<TestDescAndFn
     } else {
         fn filter(test: TestDescAndFn) -> Option<TestDescAndFn> {
             if test.desc.ignore {
-                let TestDescAndFn {desc, testfn} = test;
+                let TestDescAndFn { desc, testfn } = test;
                 Some(TestDescAndFn {
-                    desc: TestDesc { ignore: false, ..desc },
+                    desc: TestDesc {
+                        ignore: false,
+                        ..desc
+                    },
                     testfn: testfn,
                 })
             } else {
@@ -551,12 +544,8 @@ fn filter_tests(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> Vec<TestDescAndFn
     filtered
 }
 
-fn run_test(_opts: &TestOpts,
-            force_ignore: bool,
-            test: TestDescAndFn) -> MonitorMsg
-{
-
-    let TestDescAndFn {desc, testfn} = test;
+fn run_test(_opts: &TestOpts, force_ignore: bool, test: TestDescAndFn) -> MonitorMsg {
+    let TestDescAndFn { desc, testfn } = test;
 
     if force_ignore || desc.ignore {
         return (desc, TrIgnored, Vec::new());
@@ -573,7 +562,6 @@ fn run_test(_opts: &TestOpts,
         }
     }
 }
-
 
 // Benchmarking
 
@@ -595,11 +583,11 @@ pub fn black_box<T>(dummy: T) -> T {
     }
 }
 
-
 impl Bencher {
     /// Callback for benchmark functions to run in their body.
     pub fn iter<T, F>(&mut self, mut inner: F)
-        where F: FnMut() -> T
+    where
+        F: FnMut() -> T,
     {
         let start = Instant::now();
         let k = self.iterations;
@@ -622,7 +610,8 @@ impl Bencher {
     }
 
     pub fn bench_n<F>(&mut self, n: u64, f: F)
-        where F: FnOnce(&mut Bencher)
+    where
+        F: FnOnce(&mut Bencher),
     {
         self.iterations = n;
         f(self);
@@ -630,7 +619,8 @@ impl Bencher {
 
     // This is a more statistics-driven benchmark algorithm
     pub fn auto_bench<F>(&mut self, mut f: F) -> stats::Summary
-        where F: FnMut(&mut Bencher)
+    where
+        F: FnMut(&mut Bencher),
     {
         // Initial bench run to get ballpark figure.
         let mut n = 1;
@@ -676,8 +666,10 @@ impl Bencher {
 
             // If we've run for 100ms and seem to have converged to a
             // stable median.
-            if loop_run > Duration::from_millis(100) && summ.median_abs_dev_pct < 1.0 &&
-               summ.median - summ5.median < summ5.median_abs_dev {
+            if loop_run > Duration::from_millis(100)
+                && summ.median_abs_dev_pct < 1.0
+                && summ.median - summ5.median < summ5.median_abs_dev
+            {
                 return summ5;
             }
 
@@ -700,12 +692,13 @@ impl Bencher {
 }
 
 pub mod bench {
+    use super::{BenchSamples, Bencher};
     use std::cmp;
     use std::time::Duration;
-    use super::{Bencher, BenchSamples};
 
     pub fn benchmark<F>(f: F) -> BenchSamples
-        where F: FnMut(&mut Bencher)
+    where
+        F: FnMut(&mut Bencher),
     {
         let mut bs = Bencher {
             iterations: 0,
@@ -725,7 +718,8 @@ pub mod bench {
     }
 
     pub fn run_once<F>(f: F)
-        where F: FnOnce(&mut Bencher)
+    where
+        F: FnOnce(&mut Bencher),
     {
         let mut bs = Bencher {
             iterations: 0,
@@ -735,4 +729,3 @@ pub mod bench {
         bs.bench_n(1, f);
     }
 }
-
