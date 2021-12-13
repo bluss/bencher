@@ -1,9 +1,8 @@
-
 /// Defines a function called `$group_name` that returns the test description
 /// values for the listed functions `$function`.
 #[macro_export]
 macro_rules! benchmark_group {
-    ($group_name:ident, $($function:path),+) => {
+    ($group_name:ident, $($function:path),+ $(,)?) => {
         pub fn $group_name() -> ::std::vec::Vec<$crate::TestDescAndFn> {
             use $crate::{TestDescAndFn, TestFn, TestDesc};
             use std::borrow::Cow;
@@ -20,11 +19,7 @@ macro_rules! benchmark_group {
             benches
         }
     };
-    ($group_name:ident, $($function:path,)+) => {
-        benchmark_group!($group_name, $($function),+);
-    };
 }
-
 
 /// Define a `fn main()` that will run all benchmarks defined by the groups
 /// in `$group_name`.
@@ -33,7 +28,7 @@ macro_rules! benchmark_group {
 /// it to filter the benchmarks to run.
 #[macro_export]
 macro_rules! benchmark_main {
-    ($($group_name:path),+) => {
+    ($($group_name:path),+ $(,)?) => {
         fn main() {
             use $crate::TestOpts;
             use $crate::run_tests_console;

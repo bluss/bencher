@@ -15,7 +15,6 @@ categories = ["development-tools::profiling", "rust-patterns"]
 
 [lib]
 name = "bencher"
-path = "lib.rs"
 bench = false
 
 [[bench]]
