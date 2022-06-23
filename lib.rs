@@ -588,11 +588,11 @@ fn run_test(_opts: &TestOpts,
 /// pretend to use outputs to assist in avoiding dead-code
 /// elimination.
 pub fn black_box<T>(dummy: T) -> T {
-    unsafe {
-        let ret = ptr::read_volatile(&dummy);
+    
+        let ret = unsafe { ptr::read_volatile(&dummy) };
         forget(dummy);
         ret
-    }
+    
 }
 
 
